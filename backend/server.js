@@ -5,7 +5,49 @@ const cors    = require('cors');
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: '*' }));
+
+// ── CORS: restrict to your GitHub Pages domain ────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://sachinydv0.github.io/AttendIQ/',         
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:3000',
+  'null', // file:// protocol (local dev)
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(null, true); // keep permissive for now — tighten once you confirm your Pages URL
+  },
+}));
+
+// ── Simple in-memory rate limiter (per IP) ────────────────────────────────────
+const rateLimits = {};
+function rateLimit(req, res, next) {
+  const ip  = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+  const now = Date.now();
+  if (!rateLimits[ip]) rateLimits[ip] = { count: 1, start: now };
+  else {
+    if (now - rateLimits[ip].start > 60_000) {
+      rateLimits[ip] = { count: 1, start: now };
+    } else {
+      rateLimits[ip].count++;
+      if (rateLimits[ip].count > 20) {
+        return res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+      }
+    }
+  }
+  next();
+}
+app.use('/api/', rateLimit);
+
+// ── Clean up rate limit map every 5 minutes ───────────────────────────────────
+setInterval(() => {
+  const now = Date.now();
+  for (const ip in rateLimits) {
+    if (now - rateLimits[ip].start > 120_000) delete rateLimits[ip];
+  }
+}, 300_000);
 
 const BASE = 'https://erp.imsuc.ac.in';
 
@@ -23,7 +65,30 @@ function mergeCookies(existing, fresh) {
   return Object.entries(map).map(([k,v]) => `${k}=${v}`).join('; ');
 }
 
+// ── Session store with TTL (1 hour) ──────────────────────────────────────────
 const sessions = {};
+const SESSION_TTL = 30 * 60 * 1000; //  30 minutes
+
+function saveSession(admission_no, cookies) {
+  sessions[admission_no] = { cookies, ts: Date.now() };
+}
+function getSession(admission_no) {
+  const s = sessions[admission_no];
+  if (!s) return null;
+  if (Date.now() - s.ts > SESSION_TTL) {
+    delete sessions[admission_no];
+    return null;
+  }
+  return s.cookies;
+}
+
+// Clean up expired sessions every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const id in sessions) {
+    if (now - sessions[id].ts > SESSION_TTL) delete sessions[id];
+  }
+}, 15 * 60 * 1000); // every 15 minutes
 
 async function doLogin(admission_no, password) {
   const initResp = await axios.get(`${BASE}/`, {
@@ -86,12 +151,12 @@ app.post('/api/login', async (req, res) => {
   if (!admission_no || !password)
     return res.status(400).json({ error: 'Missing credentials' });
 
-  console.log('\n[LOGIN]', admission_no);
+  // No logging of admission_no or password for user privacy
+  console.log('[LOGIN] attempt received');
 
   try {
-    // Login + attendance (run in parallel with schedule)
     const cookies = await doLogin(admission_no, password);
-    sessions[admission_no] = cookies;
+    saveSession(admission_no, cookies);
 
     // Fetch attendance + schedule in parallel for speed
     const [attResp, scheduleData] = await Promise.all([
@@ -122,13 +187,11 @@ app.post('/api/login', async (req, res) => {
       throw new Error('Attendance data not found.');
 
     // Fetch today's date-wise
-    const today = new Date();
+    const today    = new Date();
     const todayERP = fmtDateERP(today);
     const todayRecords = await fetchDatewise(cookies, todayERP);
 
-    console.log('[OK] %:', attendanceData.attendance_in_percentage);
-    console.log('[SCHEDULE]', scheduleData.length, 'items');
-    console.log('[TODAY DATEWISE]', todayRecords.length, 'records');
+    console.log('[OK] attendance loaded, schedule:', scheduleData.length, 'items, today:', todayRecords.length, 'records');
 
     return res.json({
       success: true,
@@ -166,7 +229,7 @@ app.get('/api/datewise', async (req, res) => {
   if (!date || !admission_no)
     return res.status(400).json({ error: 'Missing date or admission_no' });
 
-  const cookies = sessions[admission_no];
+  const cookies = getSession(admission_no);
   if (!cookies)
     return res.status(401).json({ error: 'Session expired. Please login again.' });
 
@@ -179,7 +242,6 @@ app.get('/api/datewise', async (req, res) => {
 });
 
 // ── fetchSchedule ─────────────────────────────────────────────────────────────
-// Schedule is in ng-init: data=[{"tasks":[{id,name,color,from,to,classNature,period}]}]
 async function fetchSchedule(cookies) {
   const schedule = [];
   try {
@@ -194,20 +256,15 @@ async function fetchSchedule(cookies) {
     });
 
     const html = resp.data;
-    // Find ng-init with data=[...]
     const ngMatch = html.match(/ng-init='(data=\[[\s\S]*?\])'\s/) ||
                     html.match(/ng-init='(data=\[[\s\S]*?)'/) ||
                     html.match(/ng-init="(data=\[[\s\S]*?)"/) ||
                     html.match(/ng-init='([^']+)'/) ||
                     html.match(/ng-init="([^"]+)"/);
 
-    if (!ngMatch) {
-      console.log('[SCHEDULE] No ng-init found');
-      return schedule;
-    }
+    if (!ngMatch) return schedule;
 
     const ni = ngMatch[1];
-    // Extract the tasks array from data=[{"tasks":[...]}]
     const dataStart = ni.indexOf('data=[');
     if (dataStart !== -1) {
       const arrStart = ni.indexOf('[', dataStart);
@@ -218,26 +275,21 @@ async function fetchSchedule(cookies) {
       }
       try {
         const dataArr = JSON.parse(ni.slice(arrStart, i+1));
-        // dataArr = [{"tasks": [{id, name, from, to, classNature, period}, ...]}]
         dataArr.forEach(group => {
           if (group.tasks && Array.isArray(group.tasks)) {
             group.tasks.forEach(task => {
-              // name format: "[L] 402 - OPERATING SYSTEM (OS)"
               const nameParts = task.name ? task.name.replace(/^\[[^\]]+\]\s*/, '') : '';
-              const dashIdx = nameParts.indexOf(' - ');
-              const subject = dashIdx !== -1 ? nameParts.slice(dashIdx + 3) : nameParts;
-              const code    = dashIdx !== -1 ? nameParts.slice(0, dashIdx) : '';
-
-              // time from ISO string: "2026-03-23T06:05" → "06:05"
-              const fromTime = task.from ? task.from.slice(11,16) : '';
-              const toTime   = task.to   ? task.to.slice(11,16)   : '';
-              const timeStr  = fromTime ? `${fromTime} - ${toTime}` : '';
-
+              const dashIdx   = nameParts.indexOf(' - ');
+              const subject   = dashIdx !== -1 ? nameParts.slice(dashIdx + 3) : nameParts;
+              const code      = dashIdx !== -1 ? nameParts.slice(0, dashIdx) : '';
+              const fromTime  = task.from ? task.from.slice(11,16) : '';
+              const toTime    = task.to   ? task.to.slice(11,16)   : '';
+              const timeStr   = fromTime ? `${fromTime} - ${toTime}` : '';
               schedule.push({
                 time:        timeStr,
                 subject:     subject.trim(),
                 code:        code.trim(),
-                faculty:     '',  // scheduler doesn't have faculty
+                faculty:     '',
                 classNature: task.classNature || '',
                 period:      task.period || '',
                 status:      'pending',
@@ -245,7 +297,6 @@ async function fetchSchedule(cookies) {
             });
           }
         });
-        console.log('[SCHEDULE] parsed', schedule.length, 'items from ng-init tasks');
       } catch(e) {
         console.log('[SCHEDULE] parse error:', e.message);
       }
@@ -257,9 +308,6 @@ async function fetchSchedule(cookies) {
 }
 
 // ── fetchDatewise ─────────────────────────────────────────────────────────────
-// Response format: ["1", [{subject_name, faculty_name, subject_code, room_no, attendence}]]
-// or: ["0", "No Schdule Found for selected date !!"]
-// Note: ERP uses "attendence" (typo) not "attendance"
 async function fetchDatewise(cookies, dateStr) {
   const records = [];
   try {
@@ -280,37 +328,31 @@ async function fetchDatewise(cookies, dateStr) {
     );
 
     const data = resp.data;
-
-    // Format: ["1", [...records]] or ["0", "error message"]
     if (Array.isArray(data) && data[0] === '1' && Array.isArray(data[1])) {
       data[1].forEach(item => {
-        const att = (item.attendence || '').trim(); // ERP typo: attendence
+        const att = (item.attendence || '').trim();
         let status = 'pending';
         if (att.toLowerCase() === 'present') status = 'present';
         else if (att.toLowerCase() === 'absent') status = 'absent';
-        // "No Taken Yet !!" etc = pending
 
         records.push({
-          date:    dateStr,
-          subject: item.subject_name  || '',
-          code:    item.subject_code  || '',
-          faculty: item.faculty_name  || '',
-          room:    item.room_no       || '',
+          date:      dateStr,
+          subject:   item.subject_name  || '',
+          code:      item.subject_code  || '',
+          faculty:   item.faculty_name  || '',
+          room:      item.room_no       || '',
           status,
-          attendence: att, // keep raw for display
+          attendence: att,
         });
       });
-    } else if (Array.isArray(data) && data[0] === '0') {
-      console.log('[DATEWISE]', dateStr, '—', data[1]);
     }
-
   } catch(e) {
     console.log('[DATEWISE ERROR]', e.message);
   }
   return records;
 }
 
-// ── Date format helper: Date → "DD-MM-YYYY" ───────────────────────────────────
+// ── Date format helper ────────────────────────────────────────────────────────
 function fmtDateERP(d) {
   const dd   = String(d.getDate()).padStart(2,'0');
   const mm   = String(d.getMonth()+1).padStart(2,'0');
@@ -318,7 +360,7 @@ function fmtDateERP(d) {
   return `${dd}-${mm}-${yyyy}`;
 }
 
-app.get('/', (req, res) => res.json({ status: 'IMS Attendance API ✓' }));
+app.get('/', (req, res) => res.json({ status: 'AttendIQ API ✓', time: new Date().toISOString() }));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`\nServer on http://localhost:${PORT}\n`));
+app.listen(PORT, () => console.log(`\nAttendIQ server running on http://localhost:${PORT}\n`));

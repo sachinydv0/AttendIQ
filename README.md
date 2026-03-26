@@ -8,7 +8,7 @@ A smart attendance tracker for IMS Ghaziabad students. Logs into the college ERP
 
 - **Live ERP Login** — logs into `erp.imsuc.ac.in` with your Admission ID and Password
 - **Attendance Overview** — total classes, present, absent, percentage with animated ring
-- **Smart Insights** — safe bunk count, classes needed for 75%, classes needed for 90%
+- **Smart Insights** — safe bunk count, classes needed for 75%, classes needed for 60%
 - **Scenario Simulator** — drag sliders to see "what if I attend X more classes"
 - **Date-wise Attendance** — pick any date to see every class with faculty, room, and Present/Absent status
 - **Auto Light/Dark Theme** — follows your device theme automatically
@@ -79,7 +79,7 @@ node server.js
 ```
 You should see: `Server running on http://localhost:3001`
 
-**4. Open the frontend**
+**4. Open the frontend files html,css,app.js**
 
 Open `frontend/index.html` in Chrome. That's it.
 
@@ -159,10 +159,10 @@ Then in Android Studio: Build → Generate Signed APK.
   "success": true,
   "student": {
     "name": "Student Name",
-    "admission_no": "A2024XXX",
-    "course": "BCA",
+    "admission_no": "STUDENT_NUMBER",
+    "course": "ANYCOURSE",
     "semester": "4",
-    "section": "BCA1"
+    "section": "XYZ"
   },
   "attendance": {
     "total": 180,
@@ -186,10 +186,10 @@ Then in Android Studio: Build → Generate Signed APK.
   "date": "23-03-2026",
   "records": [
     {
-      "subject": "OPERATING SYSTEM (OS)",
-      "faculty": "Purnima Gupta",
-      "code": "402",
-      "room": "307",
+      "subject": "SUBJECT NAME",
+      "faculty": "FACULTY NAME",
+      "code": "SUBJECT CODE",
+      "room": "ROOM NO.",
       "status": "present"
     }
   ]
