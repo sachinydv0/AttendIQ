@@ -68,7 +68,7 @@ async function doLogin() {
   const btn = document.getElementById('loginBtn');
   btn.disabled    = true;
   btn.textContent = 'Logging in...';
-  setLoading(true, 'Connecting to IMS ERP...');
+setLoading(true, 'FETCHING DATA PLEASE WAIT...');
   hideErr();
 
   try {
@@ -247,7 +247,7 @@ async function filterDates() {
   if (!savedCreds) return;
 
   const list = document.getElementById('dateList');
-  list.innerHTML = '<div class="ds-note">Fetching from ERP...</div>';
+  list.innerHTML = '<div class="ds-note">Fetching DATA....../div>';
   document.getElementById('dateSummary').style.display = 'none';
 
   try {

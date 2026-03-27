@@ -1,12 +1,12 @@
-# AttendIQ — IMS Ghaziabad Attendance Tracker
+# AttendIQ — Smart Attendance Tracker
 
-A smart attendance tracker for IMS Ghaziabad students. Logs into the college ERP automatically and gives you real data with smart insights — built better than Attendance Mate.
+A smart attendance tracker for attendance data. Logs into the real data automatically and gives you real data with smart insights — built better than Attendance Mate.
 
 ---
 
 ## Features
 
-- **Live ERP Login** — logs into `erp.imsuc.ac.in` with your Admission ID and Password
+- **Live Login** — logs  with your Admission ID and Password
 - **Attendance Overview** — total classes, present, absent, percentage with animated ring
 - **Smart Insights** — safe bunk count, classes needed for 75%, classes needed for 60%
 - **Scenario Simulator** — drag sliders to see "what if I attend X more classes"
@@ -35,21 +35,16 @@ attendiq/
 ```
 User enters ID + Password
         ↓
-Backend (Node.js) logs into erp.imsuc.ac.in
+Backend (Node.js) logs into real data.
         ↓
-ERP returns HTML with attendance data in ng-init
+        
+returns HTML with attendance data.
         ↓
 Backend parses data and returns clean JSON
         ↓
 Frontend shows dashboard with smart features
 ```
 
-The ERP login flow (discovered by inspecting browser network requests):
-- `GET /` — get initial session cookie
-- `POST /` with `email` + `password` fields — login (returns 303 redirect on success)
-- `GET /admission/view_attendance` — get attendance page with ng-init data
-- `GET /admission/scheduler` — get today's class schedule
-- `POST /admission/view_schduleAttendence` with `selectDate=DD-MM-YYYY` — get date-wise attendance
 
 ---
 
@@ -85,7 +80,7 @@ Open `frontend/index.html` in Chrome. That's it.
 
 **5. Login**
 
-Enter your IMS Admission ID and Password. Your real attendance data will load.
+Enter your Admission ID and Password. Your real attendance data will load.
 
 ---
 
@@ -101,7 +96,7 @@ Enter your IMS Admission ID and Password. Your real attendance data will load.
    - **Start Command:** `node server.js`
    - **Plan:** Free
 5. Click Deploy → wait ~3 minutes
-6. Copy your URL e.g. `https://attendiq-backend.onrender.com`
+6. Copy your URL e.g. `https://backend.url.com`
 
 ### Frontend → GitHub Pages
 
@@ -112,7 +107,7 @@ Enter your IMS Admission ID and Password. Your real attendance data will load.
    ```
 3. Replace with your Render URL:
    ```javascript
-   const API_BASE = 'https://attendiq-backend.onrender.com';
+   const API_BASE = 'https://url.onrender.com';
    ```
 4. Push the `frontend/` folder to another GitHub repository
 5. Go to repo Settings → Pages → Source: main branch → root
@@ -135,14 +130,6 @@ Then in Android Studio: Build → Generate Signed APK.
 
 ---
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/login` | Login to ERP and get attendance data |
-| GET | `/api/datewise` | Get attendance for a specific date |
-| GET | `/` | Health check |
-
 ### POST /api/login
 
 **Request body:**
@@ -153,56 +140,13 @@ Then in Android Studio: Build → Generate Signed APK.
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "student": {
-    "name": "Student Name",
-    "admission_no": "STUDENT_NUMBER",
-    "course": "ANYCOURSE",
-    "semester": "4",
-    "section": "XYZ"
-  },
-  "attendance": {
-    "total": 180,
-    "present": 141,
-    "absent": 39,
-    "percentage": 78,
-    "label": "Satisfactory"
-  },
-  "schedule": [...],
-  "datewise": [...],
-  "fetchedAt": "2026-03-23T10:00:00.000Z"
-}
-```
-
-### GET /api/datewise?date=23-03-2026&admission_no=YOUR_ID
-
-**Response:**
-```json
-{
-  "success": true,
-  "date": "23-03-2026",
-  "records": [
-    {
-      "subject": "SUBJECT NAME",
-      "faculty": "FACULTY NAME",
-      "code": "SUBJECT CODE",
-      "room": "ROOM NO.",
-      "status": "present"
-    }
-  ]
-}
-```
-
 ---
 
 ## Security Notes
 
 - Credentials are sent directly from the frontend to your own backend server
-- The backend uses them only to make a single ERP request, then discards them
-- Sessions are stored in memory only — cleared when server restarts
+- The backend uses them only to make a single data request, then discards them
+- Sessions are stored in memory only — cleared after 5 minutes
 - No database, no logging of credentials, no third-party services
 
 ---
@@ -210,7 +154,7 @@ Then in Android Studio: Build → Generate Signed APK.
 ## Known Limitations
 
 - Date-wise data shows "Not Taken Yet" for classes where faculty hasn't marked attendance
-- Schedule tab was removed as ERP returns class names only without faculty info from that endpoint
+- Schedule tab was removed as data returns class names only without faculty info from that endpoint
 
 ---
 
@@ -218,10 +162,9 @@ Then in Android Studio: Build → Generate Signed APK.
 
 - **Frontend:** Pure HTML + CSS + Vanilla JS (single file, no frameworks)
 - **Backend:** Node.js + Express + Axios + Cheerio
-- **ERP:** erp.imsuc.ac.in (IMS Ghaziabad)
 
 ---
 
 ## License
 
-Built for personal use by an IMS Ghaziabad student. Not affiliated with IMS Ghaziabad.
+Built for personal use by an student. Not affiliated with any college.

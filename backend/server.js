@@ -67,7 +67,7 @@ function mergeCookies(existing, fresh) {
 
 // ── Session store with TTL (1 hour) ──────────────────────────────────────────
 const sessions = {};
-const SESSION_TTL = 30 * 60 * 1000; //  30 minutes
+const SESSION_TTL = 5 * 60 * 1000; //  5 minutes
 
 function saveSession(admission_no, cookies) {
   sessions[admission_no] = { cookies, ts: Date.now() };
@@ -82,13 +82,13 @@ function getSession(admission_no) {
   return s.cookies;
 }
 
-// Clean up expired sessions every 30 minutes
+// Clean up expired sessions every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const id in sessions) {
     if (now - sessions[id].ts > SESSION_TTL) delete sessions[id];
   }
-}, 15 * 60 * 1000); // every 15 minutes
+}, 5 * 60 * 1000); // every 5 minutes
 
 async function doLogin(admission_no, password) {
   const initResp = await axios.get(`${BASE}/`, {
