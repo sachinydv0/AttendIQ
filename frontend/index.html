@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RB5K4M9D0K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-RB5K4M9D0K');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F0F0F">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F5F5F5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendIQ">
+  <title>AttendIQ</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- T&C Modal Styles -->
+  <style>
+    .tnc-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 9999;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .tnc-overlay.show { display: flex; }
+    .tnc-sheet {
+      background: var(--card, #1a1a1a);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 32px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .tnc-handle {
+      width: 40px; height: 4px;
+      background: var(--muted, #555);
+      border-radius: 2px;
+      margin: 0 auto 20px;
+    }
+    .tnc-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text, #fff);
+    }
+    .tnc-subtitle {
+      font-size: 12px;
+      color: var(--muted, #888);
+      margin-bottom: 20px;
+    }
+    .tnc-body {
+      font-size: 13px;
+      color: var(--text-secondary, #ccc);
+      line-height: 1.7;
+    }
+    .tnc-body h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text, #fff);
+      margin: 14px 0 4px;
+    }
+    .tnc-body p { margin: 0 0 8px; }
+    .tnc-actions {
+      margin-top: 24px;
+    }
+    .tnc-close {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent, #F59E0B);
+      color: #000;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .tnc-close:active { opacity: 0.85; }
+    .tnc-note {
+      font-size: 11px;
+      color: var(--muted, #888);
+      text-align: center;
+      margin-top: 12px;
+    }
+    .dash-disclaimer {
+      font-size: 11px;
+      color: var(--muted, #888);
+      text-align: center;
+      padding: 12px 16px 4px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── TERMS & CONDITIONS MODAL ─────────────────────────────────────────────── -->
+<div class="tnc-overlay" id="tncOverlay">
+  <div class="tnc-sheet">
+    <div class="tnc-handle"></div>
+    <div class="tnc-title">Terms of Use</div>
+    <div class="tnc-subtitle">AttendIQ — Smart Attendance Tracker</div>
+    <div class="tnc-body">
+      <p>AttendIQ is an <strong>unofficial student project</strong> built for checking attendance data. It is not affiliated with, endorsed by, or connected to any college or its ERP system.</p>
+
+      <h4>🔐 Your Credentials</h4>
+      <p>Your Admission ID and Password are sent directly to our backend only to fetch your attendance from the ERP. They are <strong>never stored, logged, or shared</strong> with anyone. Sessions are cleared automatically within 5 minutes.</p>
+
+      <h4>⚠️ Use at Your Own Risk</h4>
+      <p>By logging in, you voluntarily choose to use this service. You are responsible for your own account. If the college ERP changes or flags unusual access, AttendIQ is not liable.</p>
+
+      <h4>📊 Data Accuracy</h4>
+      <p>All data is fetched directly from the ERP and displayed as-is. AttendIQ does not modify any attendance records.</p>
+
+      <h4>🛠️ No Warranty</h4>
+      <p>This is a free tool maintained by a student. It may go down, break, or stop working at any time. There is no guarantee of uptime or accuracy.</p>
+
+      <h4>🚫 Not for Misuse</h4>
+      <p>You may not use AttendIQ to access another student's data or to misrepresent your attendance in any way.</p>
+    </div>
+    <div class="tnc-actions">
+      <button class="tnc-close" id="tncClose">Close</button>
+    </div>
+    <div class="tnc-note">AttendIQ is not affiliated with any college.</div>
+  </div>
+</div>
+
+<!-- ── LOGIN ──────────────────────────────────────────────────────────────────── -->
+<div class="screen active" id="loginScreen">
+  <div class="login-box">
+    <div class="app-name">AttendIQ</div>
+    <div class="app-tagline">· Attendance Tracker</div>
+    <div class="err" id="errMsg"></div>
+    <div class="field">
+      <label>Admission ID</label>
+      <input type="text" id="admInput" placeholder="Your Admission ID" autocomplete="off" autocapitalize="characters">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="pwInput" placeholder="Your ERP password">
+        <button class="pw-toggle" id="pwToggle" type="button">👁</button>
+      </div>
+    </div>
+    <button class="btn-login" id="loginBtn">Login</button>
+    <div style="margin-top:14px;text-align:center;font-size:11px;color:var(--muted)">
+      By logging in you agree to our
+      <span id="tncLink" style="color:var(--accent);cursor:pointer;text-decoration:underline">Terms of Use</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ──────────────────────────────────────────────────────────────── -->
+<div class="screen" id="dashScreen">
+
+  <div class="topbar">
+    <div>
+      <div class="topbar-name" id="tbName">—</div>
+      <div class="topbar-adm" id="tbAdm">—</div>
+    </div>
+    <button class="btn-sm" id="refreshBtn">↻ Refresh</button>
+  </div>
+
+  <!-- HOME TAB -->
+  <div class="tab-panel active" id="tab-home">
+    <div class="hero-card">
+      <div class="hero-top">
+        <div class="ring-wrap">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle class="ring-bg" cx="40" cy="40" r="33"/>
+            <circle class="ring-fill" id="ringFill" cx="40" cy="40" r="33"
+              stroke-dasharray="207.3" stroke-dashoffset="207.3" stroke="#F59E0B"/>
+          </svg>
+          <div class="ring-label">
+            <div class="ring-pct" id="ringPct">0%</div>
+            <div class="ring-sub">ATTEND</div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-val" id="stTotal">—</div>
+            <div class="stat-lbl">Total</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--green)" id="stPresent">—</div>
+            <div class="stat-lbl">Present</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--red)" id="stAbsent">—</div>
+            <div class="stat-lbl">Absent</div>
+          </div>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="badge badge-safe" id="statusBadge">—</span>
+        <span class="erp-label" id="erpLabel">—</span>
+      </div>
+      <div class="alert-box" id="alertBox">—</div>
+    </div>
+
+    <div class="sec-title">Smart Insights</div>
+    <div class="insight-grid">
+      <div class="insight-card">
+        <div class="ic-label">Safe Bunks</div>
+        <div class="ic-val" id="icBunks">—</div>
+        <div class="ic-desc" id="icBunksDesc">—</div>
+      </div>
+      <div class="insight-card">
+        <div class="ic-label">Need for 75%</div>
+        <div class="ic-val" id="icNeed75">—</div>
+        <div class="ic-desc" id="icNeed75Desc">—</div>
+      </div>
+      <div class="insight-card">
+        <div class="ic-label">Need for 60%</div>
+        <div class="ic-val" id="icNeed90">—</div>
+        <div class="ic-desc" id="icNeed90Desc">—</div>
+      </div>
+      <div class="insight-card">
+        <div class="ic-label">Scenario</div>
+        <div class="ic-val" style="font-size:14px;margin-top:4px" id="icSim">↓ below</div>
+        <div class="ic-desc">What if I attend X more?</div>
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <div class="sec-title" style="margin-bottom:14px">What if...</div>
+      <div class="sim-row">
+        <span class="sim-lbl">I attend <b id="simAttVal">5</b> out of next <b id="simTotVal">10</b></span>
+        <span class="sim-val" id="simLive">—</span>
+      </div>
+      <input type="range" id="simAtt" min="0" max="10" value="5">
+      <div class="sim-row"><span class="sim-lbl">Total upcoming classes</span></div>
+      <input type="range" id="simTot" min="5" max="60" value="10">
+      <div class="sim-results">
+        <div class="sim-res"><div class="sim-res-val" id="simCur">—%</div><div class="sim-res-lbl">Current</div></div>
+        <div class="sim-res"><div class="sim-res-val" id="simIfAtt">—%</div><div class="sim-res-lbl">If attend</div></div>
+        <div class="sim-res"><div class="sim-res-val" id="simIfBunk">—%</div><div class="sim-res-lbl">If bunk all</div></div>
+      </div>
+    </div>
+
+    <!-- Disclaimer at bottom of home tab -->
+    <div class="dash-disclaimer">
+      AttendIQ is an unofficial student project built for checking attendance data.<br>
+      It is not affiliated with, endorsed by, or connected to any college or its ERP system.
+    </div>
+  </div>
+
+  <!-- ATTENDANCE TAB -->
+  <div class="tab-panel" id="tab-datewise">
+    <div class="sec-title">Attendance by Date</div>
+    <div class="date-filter">
+      <input type="date" class="date-input" id="dateFrom">
+      <button class="btn-filter" id="filterBtn">Search</button>
+    </div>
+    <div class="summary-row" id="dateSummary" style="display:none">
+      <div class="sum-box"><div class="sum-val" id="dsTotal">—</div><div class="sum-lbl">Classes</div></div>
+      <div class="sum-box"><div class="sum-val" style="color:var(--green)" id="dsPresent">—</div><div class="sum-lbl">Present</div></div>
+      <div class="sum-box"><div class="sum-val" style="color:var(--red)" id="dsAbsent">—</div><div class="sum-lbl">Absent</div></div>
+      <div class="sum-box"><div class="sum-val" id="dsPct">—</div><div class="sum-lbl">%</div></div>
+    </div>
+    <div class="date-list" id="dateList">
+      <div class="ds-note">Pick a date to see your classes</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="settings-section">
+      <div class="settings-title">Student Info</div>
+      <div class="info-row">
+        <div class="info-item"><span class="info-key">Name</span><span class="info-val" id="siName">—</span></div>
+        <div class="info-item"><span class="info-key">Admission No</span><span class="info-val" id="siAdm">—</span></div>
+        <div class="info-item"><span class="info-key">Course</span><span class="info-val" id="siCourse">—</span></div>
+        <div class="info-item"><span class="info-key">Semester</span><span class="info-val" id="siSem">—</span></div>
+        <div class="info-item"><span class="info-key">Section</span><span class="info-val" id="siSec">—</span></div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">App</div>
+      <button class="btn-full" id="refreshBtnS">↻ Refresh Data</button>
+      <button class="btn-full" id="tncBtnSettings" style="margin-top:8px;background:transparent;border:1px solid var(--muted);color:var(--muted)">📄 Terms of Use</button>
+      <button class="btn-full danger" id="logoutBtn">Logout</button>
+    </div>
+    <div class="app-ver">AttendIQ v1.2.0</div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px">Unofficial student project · Not affiliated with any college</div>
+    <div class="last-sync" id="lastSync">—</div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-tab active" data-tab="home"><span class="nav-icon">🏠</span>Home</button>
+    <button class="nav-tab" data-tab="datewise"><span class="nav-icon">📊</span>Attendance</button>
+    <button class="nav-tab" data-tab="settings"><span class="nav-icon">⚙️</span>Settings</button>
+  </div>
+
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loadingTxt">Loading...</div>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
