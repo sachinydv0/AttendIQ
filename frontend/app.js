@@ -29,6 +29,31 @@ function hideErr() {
   document.getElementById('errMsg').classList.remove('show');
 }
 
+// ── PWA Install Banner ────────────────────────────────────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+
+document.getElementById('installBtn').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+};
+
+document.getElementById('installDismiss').onclick = () => {
+  document.getElementById('installBanner').classList.remove('show');
+};
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+});
+
 // ── Terms & Conditions ────────────────────────────────────────────────────────
 function showTnc() {
   const overlay = document.getElementById('tncOverlay');
@@ -38,8 +63,8 @@ function showTnc() {
   };
 }
 
-document.getElementById('tncLink').onclick         = () => showTnc();
-document.getElementById('tncBtnSettings').onclick  = () => showTnc();
+document.getElementById('tncLink').onclick        = () => showTnc();
+document.getElementById('tncBtnSettings').onclick = () => showTnc();
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.nav-tab').forEach(btn =>
@@ -52,7 +77,7 @@ document.getElementById('pwToggle').onclick = () => {
   i.type = i.type === 'password' ? 'text' : 'password';
 };
 
-// ── Login — goes directly, no T&C gate ───────────────────────────────────────
+// ── Login ─────────────────────────────────────────────────────────────────────
 document.getElementById('loginBtn').onclick = doLogin;
 ['admInput','pwInput'].forEach(id =>
   document.getElementById(id).addEventListener('keydown', e => e.key === 'Enter' && doLogin())
@@ -66,7 +91,7 @@ async function doLogin() {
   const btn = document.getElementById('loginBtn');
   btn.disabled    = true;
   btn.textContent = 'Logging in...';
-  setLoading(true, 'FETCHING DATA PLEASE WAIT...');
+  setLoading(true, 'Fetching data, please wait...');
   hideErr();
 
   try {
@@ -83,7 +108,6 @@ async function doLogin() {
     buildDashboard(data);
     showScreen('dashScreen');
 
-    // Auto-load today's attendance
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('dateFrom').value = today;
     filterDates();
@@ -175,7 +199,6 @@ function buildDashboard(data) {
   else              al.textContent = `Critical! You need ${need75} consecutive classes to reach 75%.`;
   al.style.borderLeftColor = color;
 
-  // Need for 60%
   const need60 = p < 60 ? Math.ceil((0.60 * total - present) / 0.40) : 0;
 
   document.getElementById('icBunks').textContent     = p >= 75 ? bunks : 0;
@@ -245,7 +268,7 @@ async function filterDates() {
   if (!savedCreds) return;
 
   const list = document.getElementById('dateList');
-  list.innerHTML = '<div class="ds-note">Fetching data...</div>';  // ← bug fixed (was missing closing tag)
+  list.innerHTML = '<div class="ds-note">Fetching data...</div>';
   document.getElementById('dateSummary').style.display = 'none';
 
   try {

@@ -1,4 +1,4 @@
-const API_BASE = 'https://attendiq-backend.onrender.com';
+const API_BASE = 'localhost:3000'; // Change to your backend URL if different
 let savedCreds = null;
 let appData    = null;
 const TNC_KEY  = 'attendiq_tnc_v1';

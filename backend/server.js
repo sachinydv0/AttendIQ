@@ -6,22 +6,22 @@ const cors    = require('cors');
 const app = express();
 app.use(express.json());
 
-// ── CORS: restrict to your GitHub Pages domain ────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
-  'https://sachinydv0.github.io/AttendIQ/',         
+  'https://attend-iq-weld.vercel.app/',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:3000',
-  'null', // file:// protocol (local dev)
+  'null',
 ];
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(null, true); // keep permissive for now — tighten once you confirm your Pages URL
+    cb(null, true);
   },
 }));
 
-// ── Simple in-memory rate limiter (per IP) ────────────────────────────────────
+// ── Rate limiter (per IP, 20 req/min) ────────────────────────────────────────
 const rateLimits = {};
 function rateLimit(req, res, next) {
   const ip  = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
@@ -32,16 +32,14 @@ function rateLimit(req, res, next) {
       rateLimits[ip] = { count: 1, start: now };
     } else {
       rateLimits[ip].count++;
-      if (rateLimits[ip].count > 20) {
+      if (rateLimits[ip].count > 20)
         return res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
-      }
     }
   }
   next();
 }
 app.use('/api/', rateLimit);
 
-// ── Clean up rate limit map every 5 minutes ───────────────────────────────────
 setInterval(() => {
   const now = Date.now();
   for (const ip in rateLimits) {
@@ -65,9 +63,9 @@ function mergeCookies(existing, fresh) {
   return Object.entries(map).map(([k,v]) => `${k}=${v}`).join('; ');
 }
 
-// ── Session store with TTL (1 hour) ──────────────────────────────────────────
-const sessions = {};
-const SESSION_TTL = 5 * 60 * 1000; //  5 minutes
+// ── Session store (TTL: 5 minutes) ───────────────────────────────────────────
+const sessions    = {};
+const SESSION_TTL = 5 * 60 * 1000;
 
 function saveSession(admission_no, cookies) {
   sessions[admission_no] = { cookies, ts: Date.now() };
@@ -75,21 +73,30 @@ function saveSession(admission_no, cookies) {
 function getSession(admission_no) {
   const s = sessions[admission_no];
   if (!s) return null;
-  if (Date.now() - s.ts > SESSION_TTL) {
-    delete sessions[admission_no];
-    return null;
-  }
+  if (Date.now() - s.ts > SESSION_TTL) { delete sessions[admission_no]; return null; }
   return s.cookies;
 }
 
-// Clean up expired sessions every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const id in sessions) {
     if (now - sessions[id].ts > SESSION_TTL) delete sessions[id];
   }
-}, 5 * 60 * 1000); // every 5 minutes
+}, 5 * 60 * 1000);
 
+// ── Self-ping every 14 min to keep Render alive ───────────────────────────────
+// Replace YOUR_RENDER_URL with your actual Render backend URL e.g. https://attendiq-backend.onrender.com
+const RENDER_URL = 'https://YOUR_RENDER_URL';
+setInterval(async () => {
+  try {
+    await axios.get(RENDER_URL, { timeout: 8000 });
+    console.log('[PING] keep-alive ok');
+  } catch(e) {
+    console.log('[PING] failed:', e.message);
+  }
+}, 14 * 60 * 1000);
+
+// ── ERP Login ─────────────────────────────────────────────────────────────────
 async function doLogin(admission_no, password) {
   const initResp = await axios.get(`${BASE}/`, {
     headers: { 'User-Agent': 'Mozilla/5.0 Chrome/146.0.0.0' },
@@ -119,7 +126,6 @@ async function doLogin(admission_no, password) {
   if (loginResp.status !== 303 || !(loginResp.headers['location']||'').includes('user'))
     throw new Error('Invalid credentials. Please check your Admission ID and Password.');
 
-  // Follow redirect to establish session
   try {
     const ur = await axios.get(`${BASE}/index.php/user`, {
       headers: { 'User-Agent': 'Mozilla/5.0', 'Cookie': cookies, 'Referer': `${BASE}/` },
@@ -151,15 +157,17 @@ app.post('/api/login', async (req, res) => {
   if (!admission_no || !password)
     return res.status(400).json({ error: 'Missing credentials' });
 
-  // No logging of admission_no or password for user privacy
   console.log('[LOGIN] attempt received');
+  const t0 = Date.now();
 
   try {
     const cookies = await doLogin(admission_no, password);
     saveSession(admission_no, cookies);
 
-    // Fetch attendance + schedule in parallel for speed
-    const [attResp, scheduleData] = await Promise.all([
+    const todayERP = fmtDateERP(new Date());
+
+    // ── All 3 fetched in parallel — saves ~1-2 seconds vs sequential ──────────
+    const [attResp, scheduleData, todayRecords] = await Promise.all([
       axios.get(`${BASE}/admission/view_attendance`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 Chrome/146.0.0.0',
@@ -169,6 +177,7 @@ app.post('/api/login', async (req, res) => {
         maxRedirects: 5,
       }),
       fetchSchedule(cookies),
+      fetchDatewise(cookies, todayERP),
     ]);
 
     const html = attResp.data;
@@ -186,12 +195,7 @@ app.post('/api/login', async (req, res) => {
     if (!attendanceData.total_attendance)
       throw new Error('Attendance data not found.');
 
-    // Fetch today's date-wise
-    const today    = new Date();
-    const todayERP = fmtDateERP(today);
-    const todayRecords = await fetchDatewise(cookies, todayERP);
-
-    console.log('[OK] attendance loaded, schedule:', scheduleData.length, 'items, today:', todayRecords.length, 'records');
+    console.log(`[OK] loaded in ${Date.now()-t0}ms`);
 
     return res.json({
       success: true,
@@ -223,7 +227,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ── GET /api/datewise?date=21-02-2026&admission_no=XXX ────────────────────────
+// ── GET /api/datewise ─────────────────────────────────────────────────────────
 app.get('/api/datewise', async (req, res) => {
   const { date, admission_no } = req.query;
   if (!date || !admission_no)
@@ -257,9 +261,9 @@ async function fetchSchedule(cookies) {
 
     const html = resp.data;
     const ngMatch = html.match(/ng-init='(data=\[[\s\S]*?\])'\s/) ||
-                    html.match(/ng-init='(data=\[[\s\S]*?)'/) ||
-                    html.match(/ng-init="(data=\[[\s\S]*?)"/) ||
-                    html.match(/ng-init='([^']+)'/) ||
+                    html.match(/ng-init='(data=\[[\s\S]*?)'/)     ||
+                    html.match(/ng-init="(data=\[[\s\S]*?)"/)     ||
+                    html.match(/ng-init='([^']+)'/)                ||
                     html.match(/ng-init="([^"]+)"/);
 
     if (!ngMatch) return schedule;
@@ -281,7 +285,7 @@ async function fetchSchedule(cookies) {
               const nameParts = task.name ? task.name.replace(/^\[[^\]]+\]\s*/, '') : '';
               const dashIdx   = nameParts.indexOf(' - ');
               const subject   = dashIdx !== -1 ? nameParts.slice(dashIdx + 3) : nameParts;
-              const code      = dashIdx !== -1 ? nameParts.slice(0, dashIdx) : '';
+              const code      = dashIdx !== -1 ? nameParts.slice(0, dashIdx)  : '';
               const fromTime  = task.from ? task.from.slice(11,16) : '';
               const toTime    = task.to   ? task.to.slice(11,16)   : '';
               const timeStr   = fromTime ? `${fromTime} - ${toTime}` : '';
@@ -291,19 +295,15 @@ async function fetchSchedule(cookies) {
                 code:        code.trim(),
                 faculty:     '',
                 classNature: task.classNature || '',
-                period:      task.period || '',
+                period:      task.period      || '',
                 status:      'pending',
               });
             });
           }
         });
-      } catch(e) {
-        console.log('[SCHEDULE] parse error:', e.message);
-      }
+      } catch(e) { console.log('[SCHEDULE] parse error:', e.message); }
     }
-  } catch(e) {
-    console.log('[SCHEDULE ERROR]', e.message);
-  }
+  } catch(e) { console.log('[SCHEDULE ERROR]', e.message); }
   return schedule;
 }
 
@@ -334,25 +334,22 @@ async function fetchDatewise(cookies, dateStr) {
         let status = 'pending';
         if (att.toLowerCase() === 'present') status = 'present';
         else if (att.toLowerCase() === 'absent') status = 'absent';
-
         records.push({
           date:      dateStr,
-          subject:   item.subject_name  || '',
-          code:      item.subject_code  || '',
-          faculty:   item.faculty_name  || '',
-          room:      item.room_no       || '',
+          subject:   item.subject_name || '',
+          code:      item.subject_code || '',
+          faculty:   item.faculty_name || '',
+          room:      item.room_no      || '',
           status,
           attendence: att,
         });
       });
     }
-  } catch(e) {
-    console.log('[DATEWISE ERROR]', e.message);
-  }
+  } catch(e) { console.log('[DATEWISE ERROR]', e.message); }
   return records;
 }
 
-// ── Date format helper ────────────────────────────────────────────────────────
+// ── Date helper ───────────────────────────────────────────────────────────────
 function fmtDateERP(d) {
   const dd   = String(d.getDate()).padStart(2,'0');
   const mm   = String(d.getMonth()+1).padStart(2,'0');

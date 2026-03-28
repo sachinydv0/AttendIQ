@@ -1,0 +1,12 @@
+{
+  "appId": "com.attendiq.app",
+  "appName": "AttendIQ",
+  "webDir": "frontend",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0F0F0F"
+  }
+}

@@ -18,11 +18,17 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="AttendIQ">
+  <meta name="description" content="Smart attendance tracker students">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
   <title>AttendIQ</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- T&C Modal Styles -->
   <style>
     .tnc-overlay {
       display: none;
@@ -35,7 +41,7 @@
     }
     .tnc-overlay.show { display: flex; }
     .tnc-sheet {
-      background: var(--card, #1a1a1a);
+      background: var(--s1, #1a1a1a);
       border-radius: 20px 20px 0 0;
       padding: 24px 20px 32px;
       width: 100%;
@@ -54,63 +60,70 @@
       border-radius: 2px;
       margin: 0 auto 20px;
     }
-    .tnc-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 4px;
-      color: var(--text, #fff);
-    }
-    .tnc-subtitle {
-      font-size: 12px;
-      color: var(--muted, #888);
-      margin-bottom: 20px;
-    }
-    .tnc-body {
-      font-size: 13px;
-      color: var(--text-secondary, #ccc);
-      line-height: 1.7;
-    }
-    .tnc-body h4 {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text, #fff);
-      margin: 14px 0 4px;
-    }
+    .tnc-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: var(--txt, #fff); }
+    .tnc-subtitle { font-size: 12px; color: var(--muted, #888); margin-bottom: 20px; }
+    .tnc-body { font-size: 13px; color: var(--txt, #ccc); line-height: 1.7; }
+    .tnc-body h4 { font-size: 13px; font-weight: 600; color: var(--txt, #fff); margin: 14px 0 4px; }
     .tnc-body p { margin: 0 0 8px; }
-    .tnc-actions {
-      margin-top: 24px;
-    }
+    .tnc-actions { margin-top: 24px; }
     .tnc-close {
-      width: 100%;
-      padding: 13px;
-      border-radius: 12px;
-      border: none;
-      background: var(--accent, #F59E0B);
-      color: #000;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
+      width: 100%; padding: 13px; border-radius: 12px; border: none;
+      background: var(--accent, #F59E0B); color: #000;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
     }
     .tnc-close:active { opacity: 0.85; }
-    .tnc-note {
-      font-size: 11px;
-      color: var(--muted, #888);
-      text-align: center;
-      margin-top: 12px;
-    }
+    .tnc-note { font-size: 11px; color: var(--muted, #888); text-align: center; margin-top: 12px; }
     .dash-disclaimer {
-      font-size: 11px;
-      color: var(--muted, #888);
-      text-align: center;
-      padding: 12px 16px 4px;
-      line-height: 1.6;
+      font-size: 11px; color: var(--muted, #888);
+      text-align: center; padding: 12px 16px 4px; line-height: 1.6;
+    }
+
+    /* Install banner */
+    .install-banner {
+      display: none;
+      position: fixed;
+      bottom: 76px;
+      left: 12px; right: 12px;
+      background: var(--s1, #1a1a1a);
+      border: 1px solid var(--border, #2E2E2E);
+      border-radius: 14px;
+      padding: 14px 16px;
+      z-index: 500;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .install-banner.show { display: flex; }
+    .install-banner img { width: 40px; height: 40px; border-radius: 10px; }
+    .install-banner-text { flex: 1; }
+    .install-banner-text strong { font-size: 13px; font-weight: 600; display: block; }
+    .install-banner-text span { font-size: 11px; color: var(--muted, #888); }
+    .install-btn {
+      background: var(--accent, #F59E0B); color: #000;
+      border: none; border-radius: 8px; padding: 8px 14px;
+      font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+      white-space: nowrap;
+    }
+    .install-dismiss {
+      background: none; border: none; color: var(--muted, #888);
+      font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;
     }
   </style>
 </head>
 <body>
 
-<!-- ── TERMS & CONDITIONS MODAL ─────────────────────────────────────────────── -->
+<!-- ── INSTALL BANNER ─────────────────────────────────────────────────────── -->
+<div class="install-banner" id="installBanner">
+  <img src="logo.png" alt="AttendIQ">
+  <div class="install-banner-text">
+    <strong>Install AttendIQ</strong>
+    <span>Add to home screen for quick access</span>
+  </div>
+  <button class="install-btn" id="installBtn">Install</button>
+  <button class="install-dismiss" id="installDismiss">✕</button>
+</div>
+
+<!-- ── TERMS & CONDITIONS MODAL ──────────────────────────────────────────── -->
 <div class="tnc-overlay" id="tncOverlay">
   <div class="tnc-sheet">
     <div class="tnc-handle"></div>
@@ -118,19 +131,14 @@
     <div class="tnc-subtitle">AttendIQ — Smart Attendance Tracker</div>
     <div class="tnc-body">
       <p>AttendIQ is an <strong>unofficial student project</strong> built for checking attendance data. It is not affiliated with, endorsed by, or connected to any college or its ERP system.</p>
-
       <h4>🔐 Your Credentials</h4>
       <p>Your Admission ID and Password are sent directly to our backend only to fetch your attendance from the ERP. They are <strong>never stored, logged, or shared</strong> with anyone. Sessions are cleared automatically within 5 minutes.</p>
-
       <h4>⚠️ Use at Your Own Risk</h4>
       <p>By logging in, you voluntarily choose to use this service. You are responsible for your own account. If the college ERP changes or flags unusual access, AttendIQ is not liable.</p>
-
       <h4>📊 Data Accuracy</h4>
       <p>All data is fetched directly from the ERP and displayed as-is. AttendIQ does not modify any attendance records.</p>
-
       <h4>🛠️ No Warranty</h4>
       <p>This is a free tool maintained by a student. It may go down, break, or stop working at any time. There is no guarantee of uptime or accuracy.</p>
-
       <h4>🚫 Not for Misuse</h4>
       <p>You may not use AttendIQ to access another student's data or to misrepresent your attendance in any way.</p>
     </div>
@@ -141,11 +149,12 @@
   </div>
 </div>
 
-<!-- ── LOGIN ──────────────────────────────────────────────────────────────────── -->
+<!-- ── LOGIN ─────────────────────────────────────────────────────────────── -->
 <div class="screen active" id="loginScreen">
   <div class="login-box">
+    <img src="logo.png" alt="AttendIQ" style="width:72px;height:72px;border-radius:16px;margin-bottom:12px;">
     <div class="app-name">AttendIQ</div>
-    <div class="app-tagline">· Attendance Tracker</div>
+    <div class="app-tagline">Attendance Tracker</div>
     <div class="err" id="errMsg"></div>
     <div class="field">
       <label>Admission ID</label>
@@ -166,7 +175,7 @@
   </div>
 </div>
 
-<!-- ── DASHBOARD ──────────────────────────────────────────────────────────────── -->
+<!-- ── DASHBOARD ──────────────────────────────────────────────────────────── -->
 <div class="screen" id="dashScreen">
 
   <div class="topbar">
@@ -254,7 +263,6 @@
       </div>
     </div>
 
-    <!-- Disclaimer at bottom of home tab -->
     <div class="dash-disclaimer">
       AttendIQ is an unofficial student project built for checking attendance data.<br>
       It is not affiliated with, endorsed by, or connected to any college or its ERP system.

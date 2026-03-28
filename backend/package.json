@@ -1,7 +1,7 @@
 {
   "name": "attendiq-backend",
   "version": "1.0.0",
-  "description": "Backend for AttendIQ — IMS Ghaziabad attendance tracker",
+  "description": "Backend for AttendIQ —  attendance tracker",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
