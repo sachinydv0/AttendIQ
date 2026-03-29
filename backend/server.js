@@ -86,7 +86,7 @@ setInterval(() => {
 
 // ── Self-ping every 14 min to keep Render alive ───────────────────────────────
 // Replace YOUR_RENDER_URL with your actual Render backend URL e.g. https://attendiq-backend.onrender.com
-const RENDER_URL = 'https://YOUR_RENDER_URL';
+const RENDER_URL = 'https://attendiq-backend.onrender.com';
 setInterval(async () => {
   try {
     await axios.get(RENDER_URL, { timeout: 8000 });
